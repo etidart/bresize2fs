@@ -1,0 +1,23 @@
+bresize2fs - backward resize2fs
+
+This program was created to optimize/simplify moving the beginning of ext
+filesystems while changing their size.
+
+The usual (non-optimized) way of doing this is to:
+ - for extending:
+1) move the filesystem left on the disk layout
+2) call resize2fs
+ - for shrinking:
+1) call resize2fs
+2) move the filesystem right on the disk layout
+
+As it can be seen, a lot of data (the whole filesystem) must be copied. This
+process consumes a lot of time and wears out the disk.
+
+That's what this program was created for. It will do the same operations but
+using the optimized way that doesn't require copying of all of the data. If
+it isn't possible, the program will suggest the changes in the partition
+layout to allow the optimized way to function.
+
+Currently, the program is not yet ready to use. It requires refactoring and
+implementing of the core logic (see "todo!"s in the code).
