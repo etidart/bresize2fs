@@ -19,5 +19,5 @@ using the optimized way that doesn't require copying of all of the data. If
 it isn't possible, the program will suggest the changes in the partition
 layout to allow the optimized way to function.
 
-Currently, the program is not yet ready to use. It requires refactoring and
-implementing of the core logic (see "todo!"s in the code).
+Currently, the program is not yet ready to use. It requires implementing of
+the core logic (see "todo!"s in the code) and various testing routines.

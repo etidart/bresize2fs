@@ -25,7 +25,7 @@ use bstr::ByteSlice;
 use crate::cli::MIN_FS_SIZE;
 use crate::fs::superblock::Superblock;
 
-struct LoopDevice {
+pub struct LoopDevice {
     device: PathBuf,
 }
 
@@ -48,7 +48,7 @@ fn trim_bytes(mut bytes: &[u8]) -> &[u8] {
 }
 
 impl LoopDevice {
-    fn new(file_path: &Path, offset: u64) -> Result<Self> {
+    pub fn new(file_path: &Path, offset: u64) -> Result<Self> {
         let mut cmd = Command::new("losetup");
         cmd.args(["--find", "--show", "--offset", &offset.to_string()]);
         cmd.arg(file_path);
@@ -64,7 +64,7 @@ impl LoopDevice {
         Ok(Self { device })
     }
 
-    fn path(&self) -> &Path {
+    pub fn path(&self) -> &Path {
         &self.device
     }
 }
@@ -87,8 +87,8 @@ impl Drop for LoopDevice {
 }
 
 pub struct FileWPath {
-    file: File,
-    path: PathBuf,
+    pub file: File,
+    pub path: PathBuf,
 }
 
 impl FileWPath {

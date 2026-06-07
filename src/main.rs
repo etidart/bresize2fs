@@ -20,6 +20,7 @@ mod cli;
 mod fs;
 mod device;
 mod analyzer;
+mod worker;
 
 use clap::Parser;
 use byte_unit::Byte;
@@ -29,6 +30,7 @@ use inquire::Confirm;
 use cli::{Args, BasicOperation};
 use device::{FileWPath, verify_offset, search_offset, VerifyError, SearchError};
 use analyzer::{is_optimized_shrink_possible, is_optimized_extend_possible};
+use worker::{non_optimized, optimized};
 
 fn main() -> Result<()> {
     let args = Args::parse();
@@ -90,6 +92,8 @@ fn main() -> Result<()> {
         },
     };
 
+    drop(f_file.file);
+
     println!("Found filesystem on offset {} with UUID={} of size {} ({} blocks)",
         f_offset,
         f_sb.uuid,
@@ -116,20 +120,25 @@ fn main() -> Result<()> {
         BasicOperation::ShrinkSecs(v) => {
             let v = v.get();
             if is_optimized_shrink_possible(v, f_sb.block_size) {
-                todo!()
+                optimized::do_shrink()
             } else {
-                todo!()
+                non_optimized::do_shrink(&f_file.path, f_offset, f_sb, v)
+                    .context("failed to do non-optimized shrink")?;
             }
         },
         BasicOperation::ExtendSecs(v) => {
             let v = v.get();
             if is_optimized_extend_possible(v, f_sb.block_size) {
-                todo!()
+                optimized::do_extend()
             } else {
-                todo!()
+                non_optimized::do_extend(&f_file.path, f_offset, f_sb, v)
+                    .context("failed to do non-optimized extend")?;
             }
         },
     }
+
+    // check fs using e2fsck
+    todo!();
 
     Ok(())
 }
