@@ -17,7 +17,8 @@
  */
 
 use anyhow::{Context, Result, anyhow};
-use std::{cmp::Ordering, fs::OpenOptions, io::{Read, Seek, SeekFrom, Write}, path::Path, process::Command};
+use indicatif::{ProgressBar, ProgressState, ProgressStyle};
+use std::{cmp::Ordering, fmt, fs::OpenOptions, io::{Read, Seek, SeekFrom, Write}, path::Path, process::Command};
 
 use crate::{device::LoopDevice, fs::superblock::Superblock};
 
@@ -47,6 +48,13 @@ fn move_data(file: &Path, from_sec: u64, to_sec: u64, count: u64) -> Result<()> 
 
     let mut buf = [0u8; 4 * 1024 * 1024];
 
+    let pb = ProgressBar::new(total_bytes);
+    pb.set_style(ProgressStyle::with_template(
+            "{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} {{eta}}"
+        ).unwrap().with_key("eta", |state: &ProgressState, w: &mut dyn fmt::Write|
+            write!(w, "{:.1}s", state.eta().as_secs_f64()).unwrap()
+        ).progress_chars("#>-"));
+
     match from_sec.cmp(&to_sec) {
         Ordering::Less => {
             // moving right: copy from the end to avoid overwriting source
@@ -55,17 +63,30 @@ fn move_data(file: &Path, from_sec: u64, to_sec: u64, count: u64) -> Result<()> 
                 let chunk = std::cmp::min(remaining as usize, buf.len());
                 let offset = remaining - chunk as u64;
 
-                file.seek(SeekFrom::Start(start_offset + offset))
-                    .context("failed to seek the file")?;
-                file.read_exact(&mut buf[..chunk])
-                    .context("failed to read the file")?;
+                if let Err(e) = file.seek(SeekFrom::Start(start_offset + offset))
+                    .context("failed to seek the file") {
+                    pb.abandon();
+                    return Err(e);
+                }
+                if let Err(e) = file.read_exact(&mut buf[..chunk])
+                    .context("failed to read the file") {
+                    pb.abandon();
+                    return Err(e);
+                }
 
-                file.seek(SeekFrom::Start(dest_offset + offset))
-                    .context("failed to seek the file")?;
-                file.write_all(&buf[..chunk])
-                    .context("failed to write to the file")?;
+                if let Err(e) = file.seek(SeekFrom::Start(dest_offset + offset))
+                    .context("failed to seek the file") {
+                    pb.abandon();
+                    return Err(e);
+                }
+                if let Err(e) = file.write_all(&buf[..chunk])
+                    .context("failed to write to the file") {
+                    pb.abandon();
+                    return Err(e);
+                }
 
                 remaining -= chunk as u64;
+                pb.set_position(total_bytes - remaining);
             }
         }
         Ordering::Greater => {
@@ -74,21 +95,36 @@ fn move_data(file: &Path, from_sec: u64, to_sec: u64, count: u64) -> Result<()> 
             while processed < total_bytes {
                 let chunk = std::cmp::min((total_bytes - processed) as usize, buf.len());
 
-                file.seek(SeekFrom::Start(start_offset + processed))
-                    .context("failed to seek the file")?;
-                file.read_exact(&mut buf[..chunk])
-                    .context("failed to read the file")?;
+                if let Err(e) = file.seek(SeekFrom::Start(start_offset + processed))
+                    .context("failed to seek the file") {
+                    pb.abandon();
+                    return Err(e);
+                }
+                if let Err(e) = file.read_exact(&mut buf[..chunk])
+                    .context("failed to read the file") {
+                    pb.abandon();
+                    return Err(e);
+                }
 
-                file.seek(SeekFrom::Start(dest_offset + processed))
-                    .context("failed to seek the file")?;
-                file.write_all(&buf[..chunk])
-                    .context("failed to write to the file")?;
+                if let Err(e) = file.seek(SeekFrom::Start(dest_offset + processed))
+                    .context("failed to seek the file") {
+                    pb.abandon();
+                    return Err(e);
+                }
+                if let Err(e) = file.write_all(&buf[..chunk])
+                    .context("failed to write to the file") {
+                    pb.abandon();
+                    return Err(e);
+                }
 
                 processed += chunk as u64;
+                pb.set_position(processed);
             }
         }
         Ordering::Equal => unreachable!(),
     }
+
+    pb.finish_with_message("done");
 
     Ok(())
 }
