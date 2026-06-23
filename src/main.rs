@@ -23,7 +23,7 @@ mod analyzer;
 mod worker;
 
 use clap::Parser;
-use byte_unit::Byte;
+use indicatif::HumanBytes;
 use anyhow::{Context, Result, bail};
 use inquire::Confirm;
 
@@ -97,10 +97,8 @@ fn main() -> Result<()> {
     println!("Found filesystem on offset {} with UUID={} of size {} ({} blocks)",
         f_offset,
         f_sb.uuid,
-        Byte::from_u64(f_sb.block_count * f_sb.block_size as u64)
-            .get_appropriate_unit(byte_unit::UnitType::Binary),
-        Byte::from_u64(f_sb.block_size as u64)
-            .get_appropriate_unit(byte_unit::UnitType::Binary)
+        HumanBytes(f_sb.block_count * f_sb.block_size as u64),
+        HumanBytes(f_sb.block_size as u64)
     );
 
     if !args.yes {
